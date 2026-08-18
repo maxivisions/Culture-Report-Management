@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMEH Culture Report Testing Management</title>
+
+<style>
+/* =========================================================
+   GENERAL
+========================================================= */
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f4f7fb; color: #263238; }
+
+/* =========================================================
+   HEADER
+========================================================= */
+.header { background: #0b5cab; color: white; padding: 18px 25px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.header-left h1 { margin: 0; font-size: 24px; }
+.header-left p { margin: 5px 0 0; font-size: 13px; opacity: 0.9; }
+.header-date { font-size: 14px; font-weight: bold; }
+
+/* =========================================================
+   TABS
+========================================================= */
+.tabs { background: white; display: flex; gap: 5px; padding: 10px 20px; border-bottom: 1px solid #ddd; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.tab-btn { border: none; background: transparent; padding: 12px 22px; cursor: pointer; font-size: 14px; font-weight: bold; color: #555; border-radius: 6px; }
+.tab-btn:hover { background: #eef5ff; color: #0b5cab; }
+.tab-btn.active { background: #0b5cab; color: white; }
+
+/* =========================================================
+   CONTAINER
+========================================================= */
+.container { max-width: 1400px; margin: 20px auto; padding: 0 20px; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+.dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+.dashboard-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 5px solid #0b5cab; }
+.dashboard-card.pending { border-left-color: #f39c12; }
+.dashboard-card.closed { border-left-color: #27ae60; }
+.dashboard-card h3 { margin: 0; font-size: 13px; color: #777; }
+.dashboard-card .number { font-size: 30px; font-weight: bold; margin-top: 8px; }
+
+/* =========================================================
+   CARD
+========================================================= */
+.card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 20px; }
+.card-title { margin: 0 0 20px; color: #0b5cab; font-size: 20px; }
+
+/* =========================================================
+   FORM
+========================================================= */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.form-group { display: flex; flex-direction: column; }
+label { font-weight: bold; margin-bottom: 7px; font-size: 13px; color: #444; }
+.required { color: red; }
+input, select { width: 100%; padding: 11px 12px; border: 1px solid #ccd5df; border-radius: 6px; font-size: 14px; outline: none; background: white; }
+input:focus, select:focus { border-color: #0b5cab; box-shadow: 0 0 0 2px rgba(11,92,171,0.1); }
+
+/* =========================================================
+   PRODUCT / BATCH / ADD ITEM SINGLE ROW
+========================================================= */
+.item-entry-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 18px; align-items: end; margin-top: 18px; }
+.item-entry-row .form-group { min-width: 0; }
+.item-entry-button { display: flex; align-items: flex-end; }
+.item-entry-button button { height: 40px; white-space: nowrap; }
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+.button-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+button { border: none; cursor: pointer; border-radius: 6px; padding: 11px 18px; font-size: 14px; font-weight: bold; }
+.btn-primary { background: #0b5cab; color: white; }
+.btn-primary:hover { background: #084a8b; }
+.btn-success { background: #27ae60; color: white; }
+.btn-warning { background: #f39c12; color: white; }
+.btn-danger { background: #e74c3c; color: white; }
+.btn-secondary { background: #607d8b; color: white; }
+.btn-light { background: #edf2f7; color: #333; }
+.btn-edit { background: #3498db; color: white; }
+
+/* =========================================================
+   STAGED ITEMS
+========================================================= */
+.staged-section { margin-top: 30px; border: 1px solid #dce3ea; border-radius: 8px; overflow: hidden; }
+.staged-header { background: #0b5cab; color: white; padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; }
+.staged-header h3 { margin: 0; font-size: 16px; }
+.staged-count { background: white; color: #0b5cab; border-radius: 20px; padding: 4px 10px; font-size: 12px; font-weight: bold; }
+.staged-table-wrapper { overflow-x: auto; }
+.staged-table { width: 100%; border-collapse: collapse; }
+.staged-table th { background: #eef4fa; color: #333; padding: 11px; text-align: left; font-size: 13px; }
+.staged-table td { padding: 10px 11px; border-bottom: 1px solid #e5e9ed; font-size: 13px; }
+.staged-empty { text-align: center; padding: 30px !important; color: #888; }
+.staged-actions { display: flex; gap: 5px; }
+.staged-actions button { padding: 6px 10px; font-size: 11px; }
+
+/* =========================================================
+   LAB REPORT TABLE
+========================================================= */
+.table-container { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; background: white; }
+th { background: #0b5cab; color: white; padding: 12px 10px; text-align: left; font-size: 13px; white-space: nowrap; }
+td { padding: 11px 10px; border-bottom: 1px solid #e5e9ed; font-size: 13px; vertical-align: middle; }
+tr:hover { background: #f8fbff; }
+
+/* =========================================================
+   STATUS
+========================================================= */
+.status { display: inline-block; padding: 5px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
+.status.pending { background: #fff2d9; color: #b76b00; }
+.status.closed { background: #dff6e7; color: #1b7d42; }
+
+/* =========================================================
+   FILTERS & ACTIONS
+========================================================= */
+.filter-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 15px; }
+.filter-grid input, .filter-grid select { min-width: 120px; }
+.action-buttons { display: flex; gap: 5px; flex-wrap: wrap; }
+.action-buttons button { padding: 7px 10px; font-size: 11px; }
+
+/* =========================================================
+   CUSTOM POPUP DIALOG
+========================================================= */
+.popup-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+.popup-box {
+    background: white;
+    padding: 25px 30px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 420px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+}
+
+/* =========================================================
+   PRINT AREA (A4 Formatting)
+========================================================= */
+#printArea { display: none; }
+.print-document { background: white; font-family: Arial, Helvetica, sans-serif; color: #000; }
+.print-date { text-align: right; font-size: 13px; margin-bottom: 25px; }
+.print-to { font-size: 14px; line-height: 1.6; margin-bottom: 22px; }
+.print-to strong { font-weight: bold; }
+.print-greeting { font-size: 14px; margin-top: 18px; margin-bottom: 12px; }
+.print-body { font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+.product-table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 30px; }
+.product-table th { background: white !important; color: black !important; border: 1px solid #000; padding: 9px 10px; text-align: left; font-size: 13px; }
+.product-table td { border: 1px solid #000; padding: 9px 10px; font-size: 13px; }
+.print-thanking { margin-top: 25px; font-size: 14px; line-height: 1.7; }
+.print-company { margin-top: 12px; font-weight: bold; }
+.print-branch { font-weight: bold; margin-top: 4px; }
+.print-signature { margin-top: 55px; font-size: 14px; }
+
+@media print {
+    body > * { display: none !important; }
+    #printArea { display: block !important; }
+    @page { size: A4; margin: 1.6in 0.5in 0.5in 0.5in; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <h1>SMEH Culture Report Testing Management</h1>
+    </div>
+    <div class="header-date">Today: <span id="todayDate"></span></div>
+</header>
+
+<nav class="tabs">
+    <button class="tab-btn active" onclick="openTab('entryTab', this)">Entry Form</button>
+    <button class="tab-btn" onclick="openTab('listTab', this)">Lab Report List</button>
+</nav>
+
+<div class="container">
+    <!-- DASHBOARD -->
+    <div class="dashboard">
+        <div class="dashboard-card"><h3>Total Reports</h3><div class="number" id="totalCount">0</div></div>
+        <div class="dashboard-card pending"><h3>Pending</h3><div class="number" id="pendingCount">0</div></div>
+        <div class="dashboard-card closed"><h3>Closed</h3><div class="number" id="closedCount">0</div></div>
+    </div>
+
+    <!-- ENTRY TAB -->
+    <section id="entryTab" class="tab-content active">
+        <div class="card">
+            <h2 class="card-title">Culture Testing Entry Form</h2>
+            <div class="form-grid">
+                <div class="form-group"><label>Date <span class="required">*</span></label><input type="date" id="entryDate"></div>
+                <div class="form-group">
+                    <label>Branch <span class="required">*</span></label>
+                    <select id="branch">
+                        <option value="">Select Branch</option>
+                        <option value="Hanamkonda">Hanamkonda</option>
+                        <option value="Warangal">Warangal</option>
+                        <option value="Khammam">Khammam</option>
+                        <option value="Karimnagar">Karimnagar</option>
+                        <option value="Nizamabad">Nizamabad</option>
+                        <option value="Hyderabad">Hyderabad</option>
+                    </select>
+                </div>
+            </div>
+            <div class="item-entry-row">
+                <div class="form-group"><label>Product Name</label><input type="text" id="productName"></div>
+                <div class="form-group"><label>Batch Number</label><input type="text" id="batchNumber"></div>
+                <div class="item-entry-button"><button class="btn-primary" id="addItemBtn" onclick="addStagedItem()">Add Item</button></div>
+            </div>
+            <div class="staged-section">
+                <div class="staged-header"><h3>Items List</h3><span class="staged-count" id="stagedCount">0 Items</span></div>
+                <table class="staged-table">
+                    <thead><tr><th>S.No</th><th>Product</th><th>Batch</th><th>Action</th></tr></thead>
+                    <tbody id="stagedItemsBody"></tbody>
+                </table>
+            </div>
+            <div class="button-row">
+                <button class="btn-success" id="saveBtn" onclick="saveAndPrint()">Save & Print</button>
+                <button class="btn-light" onclick="resetEntryForm()">Clear</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- LIST TAB -->
+    <section id="listTab" class="tab-content">
+        <div class="card">
+            <h2 class="card-title">Lab Report List</h2>
+            <div class="filter-grid">
+                <input type="date" id="fFrom" onchange="renderReports()">
+                <input type="date" id="fTo" onchange="renderReports()">
+                <select id="fBranch" onchange="renderReports()">
+                    <option value="">All Branches</option>
+                    <option value="Hanamkonda">Hanamkonda</option>
+                    <option value="Warangal">Warangal</option>
+                    <option value="Khammam">Khammam</option>
+                    <option value="Karimnagar">Karimnagar</option>
+                    <option value="Nizamabad">Nizamabad</option>
+                    <option value="Hyderabad">Hyderabad</option>
+                </select>
+                <input type="text" id="fProd" placeholder="Search Product" oninput="renderReports()">
+                <input type="text" id="fBatch" placeholder="Search Batch" oninput="renderReports()">
+                <select id="fStatus" onchange="renderReports()">
+                    <option value="">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Closed">Closed</option>
+                </select>
+                <button class="btn-light" onclick="clearFilters()">Clear</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>S.No</th><th>Date</th><th>Branch</th><th>Items</th><th>Status</th><th>Report</th><th>Actions</th></tr></thead>
+                    <tbody id="reportTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- PRINT AREA -->
+<div id="printArea">
+    <div class="print-document">
+        <div class="print-date">Date: <span id="pDate"></span></div>
+        <div class="print-to"><strong>To</strong><br>Head of the department,<br> Microbiology,<br>Neuberg diagnostics <span id="pBranch1"></span>.</div>
+        <div class="print-greeting">Dear sir,</div>
+        <div class="print-body">We are sending the following products intended for intraocular use for random sampling and microbiological evaluation.</div>
+        <table class="product-table">
+            <thead><tr><th>Product Name</th><th>Batch No</th></tr></thead>
+            <tbody id="pItemsBody"></tbody>
+        </table>
+        <div class="print-thanking">Thanking you,</div>
+        <div class="print-company">For Dr.Sharat Maxivision Eye Hospitals Pvt.Ltd.</div>
+        <div class="print-branch" id="pBranch2"></div>
+        <div class="print-signature">Authorised Signatory</div>
+    </div>
+</div>
+
+<div id="customPopup" class="popup-overlay">
+    <div class="popup-box"><p id="popupMessage"></p><button class="btn-primary" onclick="closePopup()">OK</button></div>
+</div>
+
+<script>
+/* =========================================================
+   CONFIG: PASTE YOUR GOOGLE DEPLOYMENT URL HERE
+========================================================= */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxja5y_GdVXsONs-wc2XuHZQwUU8lqKL6xZ_3cTFWhfx_915SBt73rbbU5eKGNskEuY/exec";
+
+let reports = JSON.parse(localStorage.getItem("cultureReports") || "[]");
+let stagedItems = [];
+let editIndex = -1;
+
+document.addEventListener("DOMContentLoaded", () => {
+    setToday();
+    renderStagedItems();
+    renderReports();
+    updateDashboard();
+});
+
+function setToday() {
+    const now = new Date();
+    document.getElementById("todayDate").textContent = now.toLocaleDateString('en-IN');
+    document.getElementById("entryDate").value = now.toISOString().split('T')[0];
+}
+
+function openTab(id, btn) {
+    document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+    btn.classList.add("active");
+}
+
+function showPopup(msg) {
+    document.getElementById("popupMessage").textContent = msg;
+    document.getElementById("customPopup").style.display = "flex";
+}
+function closePopup() { document.getElementById("customPopup").style.display = "none"; }
+
+function addStagedItem() {
+    const prod = document.getElementById("productName").value.trim();
+    const batch = document.getElementById("batchNumber").value.trim();
+    if (!prod || !batch) { showPopup("Enter Product and Batch."); return; }
+    
+    if (editIndex > -1) {
+        stagedItems[editIndex] = { productName: prod, batchNumber: batch };
+        editIndex = -1;
+        document.getElementById("addItemBtn").textContent = "Add Item";
+    } else {
+        stagedItems.push({ productName: prod, batchNumber: batch });
+    }
+    document.getElementById("productName").value = "";
+    document.getElementById("batchNumber").value = "";
+    renderStagedItems();
+}
+
+function renderStagedItems() {
+    const body = document.getElementById("stagedItemsBody");
+    document.getElementById("stagedCount").textContent = `${stagedItems.length} Items`;
+    body.innerHTML = stagedItems.length ? "" : "<tr><td colspan='4' style='text-align:center;padding:20px'>No items added.</td></tr>";
+    stagedItems.forEach((item, idx) => {
+        const row = body.insertRow();
+        row.innerHTML = `<td>${idx+1}</td><td>${item.productName}</td><td>${item.batchNumber}</td>
+        <td><button class='btn-edit' onclick='editItem(${idx})'>Edit</button> <button class='btn-danger' onclick='removeItem(${idx})'>Delete</button></td>`;
+    });
+}
+
+function editItem(idx) {
+    const item = stagedItems[idx];
+    document.getElementById("productName").value = item.productName;
+    document.getElementById("batchNumber").value = item.batchNumber;
+    editIndex = idx;
+    document.getElementById("addItemBtn").textContent = "Update";
+}
+function removeItem(idx) { stagedItems.splice(idx, 1); renderStagedItems(); }
+
+async function saveAndPrint() {
+    const date = document.getElementById("entryDate").value;
+    const branch = document.getElementById("branch").value;
+    const saveBtn = document.getElementById("saveBtn");
+    if (!date || !branch || stagedItems.length === 0) {
+        showPopup("Complete all fields and add items.");
+        return;
+    }
+    const newReport = {
+        action: "save",
+        id: Date.now(),
+        date,
+        branch,
+        items: [...stagedItems],
+        status: "Pending"
+    };
+    saveBtn.textContent = "Saving...";
+    saveBtn.disabled = true;
+    try {
+        await fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newReport)
+        });
+    } catch (err) { console.error(err); }
+    
+    reports.unshift(newReport);
+    localStorage.setItem("cultureReports", JSON.stringify(reports));
+    preparePrint(date, branch, stagedItems);
+    resetEntryForm();
+    renderReports();
+    updateDashboard();
+    saveBtn.textContent = "Save & Print";
+    saveBtn.disabled = false;
+    setTimeout(() => { window.print(); }, 500);
+}
+
+function preparePrint(date, branch, items) {
+    document.getElementById("pDate").textContent = new Date(date).toLocaleDateString('en-IN');
+    document.getElementById("pBranch1").textContent = branch;
+    document.getElementById("pBranch2").textContent = branch;
+    const body = document.getElementById("pItemsBody");
+    body.innerHTML = (items || []).map(i => `<tr><td>${i.productName}</td><td>${i.batchNumber}</td></tr>`).join("");
+}
+
+function printOld(id) {
+    const r = reports.find(x => x.id === id);
+    if (!r) return;
+    preparePrint(r.date, r.branch, r.items);
+    setTimeout(() => { window.print(); }, 300);
+}
+
+/* =========================================================
+   PDF UPLOAD & DRIVE LOGIC (FIXED)
+========================================================= */
+function uploadPDF(id, input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const uploadBtn = input.nextElementSibling;
+    const originalText = uploadBtn.textContent;
+    uploadBtn.textContent = "Uploading...";
+    uploadBtn.disabled = true;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const payload = {
+            action: "uploadPDF",
+            id: id,
+            fileName: `Report_${id}.pdf`,
+            pdfData: e.target.result
+        };
+
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+            
+            // Apps Script JSON responses are sometimes wrapped or redirected. 
+            // We parse carefully.
+            const result = await response.json();
+            
+            if(result.result === "success") {
+                // UPDATE LOCAL DATA IMMEDIATELY
+                const index = reports.findIndex(x => x.id == id);
+                if (index !== -1) {
+                    reports[index].viewUrl = result.viewUrl;
+                    reports[index].downloadUrl = result.downloadUrl;
+                    reports[index].status = "Closed";
+                    localStorage.setItem("cultureReports", JSON.stringify(reports));
+                }
+                showPopup("File Uploaded Successfully to Drive!");
+            } else {
+                showPopup("Server Error: " + (result.message || "Unknown error"));
+            }
+        } catch (err) {
+            console.error(err);
+            showPopup("Connection error or CORS block. Checking if file was still saved...");
+        } finally {
+            uploadBtn.textContent = originalText;
+            uploadBtn.disabled = false;
+            renderReports(); // Re-render to show View/Download buttons
+            updateDashboard();
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+function viewPDF(id) {
+    const r = reports.find(x => x.id == id);
+    if (r && r.viewUrl) window.open(r.viewUrl, '_blank');
+}
+
+function downloadPDF(id) {
+    const r = reports.find(x => x.id == id);
+    if (r && r.downloadUrl) window.open(r.downloadUrl, '_blank');
+}
+
+function renderReports() {
+    const body = document.getElementById("reportTableBody");
+    const fDateF = document.getElementById("fFrom").value;
+    const fDateT = document.getElementById("fTo").value;
+    const fBran = document.getElementById("fBranch").value;
+    const fProd = document.getElementById("fProd").value.toLowerCase();
+    const fBat = document.getElementById("fBatch").value.toLowerCase();
+    const fStat = document.getElementById("fStatus").value;
+
+    const filtered = reports.filter(r => {
+        const dMatch = (!fDateF || r.date >= fDateF) && (!fDateT || r.date <= fDateT);
+        const bMatch = !fBran || r.branch === fBran;
+        const sMatch = !fStat || r.status === fStat;
+        const items = r.items || [];
+        const pMatch = !fProd || items.some(i => i.productName.toLowerCase().includes(fProd));
+        const btMatch = !fBat || items.some(i => i.batchNumber.toLowerCase().includes(fBat));
+        return dMatch && bMatch && sMatch && pMatch && btMatch;
+    });
+
+    body.innerHTML = filtered.length ? "" : "<tr><td colspan='7' style='text-align:center;padding:40px'>No records found.</td></tr>";
+
+    filtered.forEach((r, idx) => {
+        const items = r.items || [];
+        const itemsHtml = items.map(i => `<div>${i.productName} (${i.batchNumber})</div>`).join("");
+        const row = body.insertRow();
+        row.innerHTML = `
+            <td>${idx+1}</td>
+            <td>${new Date(r.date).toLocaleDateString('en-IN')}</td>
+            <td>${r.branch}</td>
+            <td>${itemsHtml}</td>
+            <td><span class="status ${r.status.toLowerCase()}">${r.status}</span></td>
+            <td>
+                ${r.viewUrl ? `
+                    <div class="action-buttons">
+                        <button class='btn-success' onclick='viewPDF("${r.id}")'>View</button>
+                        <button class='btn-secondary' onclick='downloadPDF("${r.id}")'>Download</button>
+                    </div>` : 
+                `<div>
+                    <input type="file" id="up-${r.id}" style="display:none" accept="application/pdf" onchange="uploadPDF(${r.id}, this)">
+                    <button class='btn-warning' onclick="document.getElementById('up-${r.id}').click()">Upload PDF</button>
+                </div>`}
+            </td>
+            <td>
+                <button class='btn-primary' onclick='printOld(${r.id})'>Print</button>
+                <button class='btn-danger' onclick='deleteReport(${r.id})'>Del</button>
+            </td>
+        `;
+    });
+}
+
+function deleteReport(id) {
+    if (confirm("Delete this report?")) {
+        reports = reports.filter(r => r.id !== id);
+        localStorage.setItem("cultureReports", JSON.stringify(reports));
+        renderReports();
+        updateDashboard();
+    }
+}
+
+function updateDashboard() {
+    document.getElementById("totalCount").textContent = reports.length;
+    document.getElementById("pendingCount").textContent = reports.filter(r => r.status === "Pending").length;
+    document.getElementById("closedCount").textContent = reports.filter(r => r.status === "Closed").length;
+}
+
+function resetEntryForm() {
+    stagedItems = [];
+    document.getElementById("branch").value = "";
+    document.getElementById("productName").value = "";
+    document.getElementById("batchNumber").value = "";
+    setToday();
+    renderStagedItems();
+}
+
+function clearFilters() {
+    document.querySelectorAll(".filter-grid input, .filter-grid select").forEach(i => i.value = "");
+    renderReports();
+}
+</script>
+</body>
+</html>

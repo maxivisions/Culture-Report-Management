@@ -224,7 +224,7 @@ td { padding: 11px 10px; border-bottom: 1px solid #e5e9ed; font-size: 13px; }
                 <button class="btn-light" onclick="clearFilters()">Clear</button>
             </div>
             <div class="table-container">
-                <table>
+                <table id="mainTable">
                     <thead>
                         <tr>
                             <th>S.No</th>
@@ -237,7 +237,9 @@ td { padding: 11px 10px; border-bottom: 1px solid #e5e9ed; font-size: 13px; }
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="reportTableBody"></tbody>
+                    <tbody id="reportTableBody">
+                        <tr><td colspan="8" style="text-align:center;padding:40px">Loading data from cloud...</td></tr>
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -278,16 +280,19 @@ td { padding: 11px 10px; border-bottom: 1px solid #e5e9ed; font-size: 13px; }
 </div>
 
 <script>
+// IMPORTANT: Ensure SCRIPT_URL is your current Web App URL
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzA-bumDJAOerzXpV1uDGldJzEQRSpOKFAGXnzPyQx8QUNN20GSJwUptLcTmn2lOuVZ/exec";
 
-let reports = JSON.parse(localStorage.getItem("cultureReports") || "[]");
+// Reports will be populated from the Cloud (Sheets)
+let reports = [];
 let stagedItems = [];
 let editIndex = -1;
 let editingReportId = null;
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     setToday();
-    syncData();
+    // Prioritize fetching data from Google Sheets immediately
+    await syncData();
     renderStagedItems();
     renderReports();
     updateDashboard();
@@ -299,11 +304,16 @@ async function syncData() {
         if (response.ok) {
             const data = await response.json();
             if (data && Array.isArray(data)) {
+                // source of truth is now the data from Google Sheets
                 reports = data;
+                // Update local storage only as a local backup
                 localStorage.setItem("cultureReports", JSON.stringify(reports));
             }
         }
-    } catch (e) { console.warn("Sync failed."); }
+    } catch (e) { 
+        console.warn("Could not fetch from cloud, using local storage backup.");
+        reports = JSON.parse(localStorage.getItem("cultureReports") || "[]");
+    }
     renderReports();
     updateDashboard();
 }
@@ -336,6 +346,7 @@ function addStagedItem() {
         showPopup(`Batch "${batch}" is already in the list.`); return;
     }
 
+    // Check Cloud data for duplicates
     const hist = reports.find(r => (editingReportId ? r.id !== editingReportId : true) && r.items.some(i => i.batchNumber === batch));
     if (hist) {
         showPopup(`Batch "${batch}" already exists in a previous report sent to Branch: ${hist.branch}`); return;
@@ -380,27 +391,30 @@ async function saveAndPrint() {
     if (!date || !branch || stagedItems.length === 0) { showPopup("Complete all fields."); return; }
 
     const targetId = editingReportId || Date.now();
-    let status = editingReportId ? (reports.find(r => r.id === targetId)?.status || "Pending") : "Pending";
+    let currentReport = reports.find(r => r.id === targetId);
+    let status = currentReport ? currentReport.status : "Pending";
 
     const reportData = { action: editingReportId ? "update" : "save", id: targetId, date, branch, items: [...stagedItems], status: status };
     
     document.getElementById("saveBtn").disabled = true;
+    document.getElementById("saveBtn").textContent = "Syncing with cloud...";
+
     try {
+        // Send to Google Sheets
         await fetch(SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(reportData) });
-    } catch (e) {}
-
-    if (editingReportId) {
-        const idx = reports.findIndex(r => r.id === targetId);
-        if (idx !== -1) reports[idx] = reportData;
-    } else { reports.unshift(reportData); }
-
-    localStorage.setItem("cultureReports", JSON.stringify(reports));
-    preparePrint(date, branch, stagedItems);
-    resetEntryForm();
-    renderReports();
-    updateDashboard();
-    document.getElementById("saveBtn").disabled = false;
-    setTimeout(() => { window.print(); }, 500);
+        
+        // After saving, re-sync the whole list to ensure UI matches Sheets exactly
+        await syncData();
+        
+        preparePrint(date, branch, stagedItems);
+        resetEntryForm();
+        setTimeout(() => { window.print(); }, 500);
+    } catch (e) {
+        showPopup("Cloud save failed. Check internet connection.");
+    } finally {
+        document.getElementById("saveBtn").disabled = false;
+        document.getElementById("saveBtn").textContent = "Save & Print";
+    }
 }
 
 function preparePrint(date, branch, items) {
@@ -431,25 +445,28 @@ function uploadPDF(id, input) {
     const file = input.files[0];
     if (!file) return;
     const btn = input.nextElementSibling;
+    const originalText = btn.textContent;
     btn.textContent = "Uploading...";
+    btn.disabled = true;
+
     const reader = new FileReader();
     reader.onload = async (e) => {
         try {
-            const resp = await fetch(SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ action: "uploadPDF", id: id, fileName: `Report_${id}.pdf`, pdfData: e.target.result }) });
+            const payload = { action: "uploadPDF", id: id, fileName: `Report_${id}.pdf`, pdfData: e.target.result };
+            const resp = await fetch(SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) });
             const res = await resp.json();
             if(res.result === "success") {
-                const idx = reports.findIndex(x => x.id == id);
-                if (idx !== -1) { 
-                    reports[idx].viewUrl = res.viewUrl; 
-                    reports[idx].status = "Closed"; 
-                }
-                localStorage.setItem("cultureReports", JSON.stringify(reports));
-                showPopup("Uploaded! Status is now Closed.");
+                await syncData(); // Fetch updated status from Cloud
+                showPopup("Uploaded! Report is now Closed.");
             }
-        } catch (err) {}
-        btn.textContent = "Upload PDF"; 
-        renderReports(); 
-        updateDashboard();
+        } catch (err) {
+            showPopup("Upload failed.");
+        } finally {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            renderReports(); 
+            updateDashboard();
+        }
     };
     reader.readAsDataURL(file);
 }
@@ -472,8 +489,12 @@ function renderReports() {
         return dMatch && bMatch && sMatch && pMatch && btMatch;
     });
 
-    body.innerHTML = filtered.length ? "" : "<tr><td colspan='8' style='text-align:center;padding:40px'>No records found.</td></tr>";
+    if (filtered.length === 0) {
+        body.innerHTML = "<tr><td colspan='8' style='text-align:center;padding:40px'>No records found.</td></tr>";
+        return;
+    }
 
+    body.innerHTML = "";
     filtered.forEach((r, idx) => {
         const displayItems = r.items.filter(it => {
             const pm = !fProd || it.productName.toLowerCase().includes(fProd);
@@ -509,8 +530,15 @@ function renderReports() {
     });
 }
 
-function deleteReport(id) {
-    if (confirm("Delete this?")) { reports = reports.filter(r => r.id !== id); localStorage.setItem("cultureReports", JSON.stringify(reports)); renderReports(); updateDashboard(); }
+async function deleteReport(id) {
+    if (confirm("Delete this report permanently from Cloud?")) {
+        try {
+            await fetch(SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ action: "delete", id: id }) });
+            await syncData();
+        } catch (e) {
+            showPopup("Delete failed.");
+        }
+    }
 }
 
 function updateDashboard() {

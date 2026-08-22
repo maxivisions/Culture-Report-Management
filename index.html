@@ -67,6 +67,7 @@ input, select { width: 100%; padding: 11px 12px; border: 1px solid #ccd5df; bord
    BUTTONS & STATUS
 ========================================================= */
 button { border: none; cursor: pointer; border-radius: 6px; padding: 11px 18px; font-size: 14px; font-weight: bold; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary { background: #0b5cab; color: white; }
 .btn-success { background: #27ae60; color: white; }
 .btn-warning { background: #f39c12; color: white; }
@@ -96,7 +97,7 @@ td { padding: 11px 10px; border-bottom: 1px solid #e5e9ed; font-size: 13px; }
 .popup-box { background: white; padding: 25px 30px; border-radius: 8px; width: 90%; max-width: 420px; text-align: center; }
 
 /* =========================================================
-   PRINT AREA STYLING (MATCHES IMAGE & ALIGNED BORDERS)
+   PRINT AREA STYLING
 ========================================================= */
 #printArea { display: none; }
 
@@ -126,10 +127,8 @@ td { padding: 11px 10px; border-bottom: 1px solid #e5e9ed; font-size: 13px; }
         font-size: 14px; 
         color: #000;
         vertical-align: middle;
-        word-wrap: break-word;
     }
-    /* FIX: Heading black and borders tightly aligned to text */
-    .p-table th { font-weight: bold; color: #000 !important; background-color: transparent !important; }
+    .p-table th { font-weight: bold; color: #000 !important; }
 
     .p-closing { margin-bottom: 15px; color: #000; }
     .p-company { font-weight: bold; font-size: 15px; margin-bottom: 2px; color: #000; }
@@ -334,7 +333,7 @@ function addStagedItem() {
     if (!prod || !batch) { showPopup("Enter Product and Batch."); return; }
     
     if (stagedItems.find((it, idx) => it.batchNumber === batch && idx !== editIndex)) {
-        showPopup(`Batch "${batch}" is already in the current list.`); return;
+        showPopup(`Batch "${batch}" is already in the list.`); return;
     }
 
     const hist = reports.find(r => (editingReportId ? r.id !== editingReportId : true) && r.items.some(i => i.batchNumber === batch));
@@ -418,7 +417,7 @@ function printOld(id) {
 
 function modifyReport(id) {
     const r = reports.find(x => x.id === id);
-    if (!r) return;
+    if (!r || r.status === "Closed") return;
     editingReportId = id;
     document.getElementById("entryDate").value = r.date;
     document.getElementById("branch").value = r.branch;
@@ -440,12 +439,17 @@ function uploadPDF(id, input) {
             const res = await resp.json();
             if(res.result === "success") {
                 const idx = reports.findIndex(x => x.id == id);
-                if (idx !== -1) { reports[idx].viewUrl = res.viewUrl; reports[idx].status = "Closed"; }
+                if (idx !== -1) { 
+                    reports[idx].viewUrl = res.viewUrl; 
+                    reports[idx].status = "Closed"; 
+                }
                 localStorage.setItem("cultureReports", JSON.stringify(reports));
-                showPopup("Uploaded!");
+                showPopup("Uploaded! Status is now Closed.");
             }
         } catch (err) {}
-        btn.textContent = "Upload PDF"; renderReports(); updateDashboard();
+        btn.textContent = "Upload PDF"; 
+        renderReports(); 
+        updateDashboard();
     };
     reader.readAsDataURL(file);
 }
@@ -481,6 +485,7 @@ function renderReports() {
 
         const pNames = displayItems.map(i => `<div style="margin-bottom:3px">${i.productName}</div>`).join("");
         const bNos = displayItems.map(i => `<div style="margin-bottom:3px">${i.batchNumber}</div>`).join("");
+        const isClosed = (r.status === "Closed");
 
         const row = body.insertRow();
         row.innerHTML = `
@@ -497,7 +502,7 @@ function renderReports() {
             <td>
                 <div class="action-buttons">
                     <button class='btn-primary' onclick='printOld(${r.id})'>Print</button>
-                    <button class='btn-edit' onclick='modifyReport(${r.id})'>Modify</button>
+                    <button class='btn-edit' ${isClosed ? 'disabled title="Closed reports cannot be modified"' : ''} onclick='modifyReport(${r.id})'>Modify</button>
                     <button class='btn-danger' onclick='deleteReport(${r.id})'>Del</button>
                 </div>
             </td>`;
